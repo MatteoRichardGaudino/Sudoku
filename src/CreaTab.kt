@@ -1,3 +1,4 @@
+import java.awt.Color
 import java.awt.GridLayout
 import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
@@ -20,8 +21,12 @@ class CreaTab: JFrame("Crea Tabella") {
 
         gui.panel1.layout = GridLayout(9, 9)
 
-        field.forEach {
-            it.forEach {
+        field.forEachIndexed {i, f->
+            f.forEachIndexed {j, it->
+                if ((j in 3..5 && (i in 0..2 || i in 6..8))
+                        || ((j in 0..2 || j in 6..8) && i in 3..5)){
+                    it.background = Color.lightGray
+                }
                 gui.panel1.add(it)
             }
         }

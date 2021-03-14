@@ -5,9 +5,39 @@ fun Array<IntArray>.isSolved(): Boolean{
     this.forEach {
         if (0 in it) return false
     }
+    return this.check()
+}
+
+// controlla che in un array non ci siano duplicati a parte 0
+fun IntArray.check(): Boolean{
+    return this.filter { it != 0 }.distinct().size == this.filter { it != 0 }.size
+}
+
+// controlla che in una colonna/riga/sezione non ci siano duplicati
+fun Array<IntArray>.check(): Boolean{
+    // per le righe
+    this.forEach {
+        if (!it.check()) return false
+    }
+    // per le colonne
+    repeat(9){i ->
+        if (
+                !IntArray(9){
+                 this[it][i];
+                }.check()
+        ) return false
+    }
+    // per le sezioni
+    repeat(3){i ->
+        repeat(3){j ->
+            if (!this.sub(i*3, j*3).check())
+                return false
+        }
+    }
     return true
 }
 
+// restituisce la colonna i esima
 fun Array<IntArray>.col(i: Int): List<Int>{
     var c = mutableListOf<Int>()
     this.forEach {
@@ -16,6 +46,7 @@ fun Array<IntArray>.col(i: Int): List<Int>{
     return c
 }
 
+// dato una posizione nel riferimento della tabella restituisce l'indice nel riferimento della sezione
 fun subIndex(i: Int, j: Int): Pair<Int, Int>{
     var row = 0
     var col = 0
@@ -32,7 +63,8 @@ fun subIndex(i: Int, j: Int): Pair<Int, Int>{
     return Pair(row, col)
 }
 
-fun Array<IntArray>.sub(i: Int, j: Int): List<Int>{
+// restituisce la sezione in cui si trova ij
+fun Array<IntArray>.sub(i: Int, j: Int): IntArray{
     val s = mutableListOf<Int>()
     val index = subIndex(i, j)
     var row = index.first
@@ -43,11 +75,11 @@ fun Array<IntArray>.sub(i: Int, j: Int): List<Int>{
             s.add(this[row+r][col+c])
         }
     }
-    return s
+    return s.toIntArray()
 }
 
 fun Array<IntArray>.candidati(i: Int, j: Int): List<Int>{
-    return (1..9).toList().minus( this[i] union this.col(j) union this.sub(i, j))
+    return (1..9).toList().minus( this[i] union this.col(j) union this.sub(i, j).toList())
 }
 
 fun Array<IntArray>.candidatiInSub(i: Int, j: Int): Array<Array<List<Int>>>{
@@ -78,6 +110,46 @@ fun Array<IntArray>.esclusione(i: Int, j: Int): List<Int>{
     return this.candidati(i, j).minus(set)
 }
 
+fun Array<IntArray>.copia(a: Array<IntArray>){
+    repeat(9){i->
+        repeat(9){j->
+            this[i][j] = a[i][j]
+        }
+    }
+}
+// riduzione ad assurdo
+fun Array<IntArray>.raa(){
+    // fa una copia della tabella originale
+    val tryTab = Array(9){IntArray(9){0}}
+    // trova il primo 0 e lo sostituisce con uno dei candidati
+    var continua = true
+    var pos = Pair(0, 0)
+    while (continua && pos.first < 9){
+        val index = this[pos.first].indexOf(0)
+        if (index != -1){
+            continua = false
+            pos = Pair(pos.first, index)
+        } else pos = Pair(pos.first+1, index)
+    }
+    if (pos.first in 0..8 && pos.second in 0..8){
+        val candidati = this.candidati(pos.first, pos.second)
+        var risolto = false
+        var i = 0
+        // finche non è risolto prova tutti i candidati, almeno uno deve essere giusto eh!!
+        while (!risolto && i < candidati.size){
+            tryTab.copia(this)
+            tryTab[pos.first][pos.second] = candidati[i]
+            risolto = risolvi(tryTab)
+            i++
+        }
+        if (risolto) {
+            // copia il risultato nella tabella originale
+            this.copia(tryTab)
+        }
+    }
+
+}
+
 fun readTab(fileName: String): Array<IntArray>{
     val f = File(fileName)
     val scan = Scanner(f)
@@ -91,9 +163,8 @@ fun readTab(fileName: String): Array<IntArray>{
     return tab
 }
 
-fun risolvi(tab: Array<IntArray>){
+fun risolvi(tab: Array<IntArray>): Boolean{
 
-    val timer = System.currentTimeMillis()
     var counter = 0
 
     var continua = true
@@ -127,28 +198,39 @@ fun risolvi(tab: Array<IntArray>){
         }
         counter += 1
     }
-
-
-
-    tab.forEach{
-        it.forEach{ print("$it ")}
-        println()
+    if (!tab.isSolved() && tab.check()){
+        tab.raa()
     }
-    println("Risolto: ${tab.isSolved()}")
-    println("finito in ${System.currentTimeMillis()-timer} ms, $counter ripetizioni")
+
+    println("Steps: $counter")
+    return tab.isSolved();
 }
 
 
 fun main(args: Array<String>) {
-    if(args.size == 1)
-        risolvi(readTab(args[0]))
-    else{
-        val tab = readTab("difficile1.sudoku")
-        for (i in 0 until tab.size){
-            for(j in 0 until tab[i].size){
-                if (tab[i][j] == 0)
-                    println("$i, $j: ${tab.candidati(i, j)}")
-            }
+    if(args.size == 1) {
+        val timer = System.currentTimeMillis()
+        val tab = readTab(args[0])
+        val solved = risolvi(tab)
+        tab.forEach {
+            it.forEach { print("$it ") }
+            println()
         }
+        val risolto = solved
+        println("Risolto: $risolto")
+        println("finito in ${System.currentTimeMillis()-timer} ms")
+    }
+    else{
+        val tab = readTab("everest.sudoku")
+        val timer = System.currentTimeMillis()
+        val risolto = risolvi(tab)
+
+        tab.forEach{
+            it.forEach{ print("$it ")}
+            println()
+        }
+        println("Corretto: ${tab.check()}")
+        println("Risolto: $risolto")
+        println("finito in ${System.currentTimeMillis()-timer} ms")
     }
 }
